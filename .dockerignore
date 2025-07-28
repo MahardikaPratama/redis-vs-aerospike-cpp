@@ -1,0 +1,10 @@
+.git
+.gitmodules
+.gitignore
+build/
+docker-compose.yaml
+Dockerfile
+README.md
+!docker/CMakeLists.txt
+!jenkins/CMakeLists.txt
+!jenkins/test/CMakeLists.txt

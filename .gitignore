@@ -1,3 +1,4 @@
+# ---> C++
 # Prerequisites
 *.d
 
@@ -10,12 +11,6 @@
 # Precompiled Headers
 *.gch
 *.pch
-
-# Linker files
-*.ilk
-
-# Debugger Files
-*.pdb
 
 # Compiled Dynamic libraries
 *.so
@@ -37,5 +32,33 @@
 *.out
 *.app
 
-# debug information files
-*.dwo
+# Build folders
+.vscode
+build
+build/*
+external
+x64
+CMakeLists.txt
+!docker/CMakeLists.txt
+!jenkins/CMakeLists.txt
+!jenkins/test/CMakeLists.txt
+
+# Config file
+/config.json
+/.env
+/.env.docker
+
+# Model generator file
+/model.json
+
+# Docker file
+/docker/resources
+
+# Testing folder
+/Testing
+
+# Logs that produced by unit test
+/logs
+
+# Clangd Folder
+.cache
