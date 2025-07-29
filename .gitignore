@@ -35,8 +35,6 @@
 # Build folders
 .vscode
 build
-build/*
-external
 x64
 CMakeLists.txt
 !docker/CMakeLists.txt

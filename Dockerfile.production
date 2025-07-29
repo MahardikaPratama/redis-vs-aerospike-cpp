@@ -1,0 +1,73 @@
+# Multi-stage Dockerfile for production
+# Stage 1: Build stage
+FROM ubuntu:22.04 AS builder
+
+# Set environment variables to avoid interactive prompts
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    cmake \
+    g++ \
+    libcrypto++-dev \
+    libcrypto++-utils \
+    pkg-config \
+    wget \
+    unzip \
+    liblua5.1-0-dev \
+    libssl-dev \
+    zlib1g-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Aerospike C++ Client
+RUN wget https://github.com/aerospike/aerospike-client-cpp/archive/refs/tags/6.3.0.tar.gz -O aerospike-cpp-client.tar.gz \
+    && tar -xzf aerospike-cpp-client.tar.gz \
+    && cd aerospike-client-cpp-6.3.0 \
+    && make \
+    && make install \
+    && cd .. \
+    && rm -rf aerospike-client-cpp-6.3.0 aerospike-cpp-client.tar.gz
+
+# Set working directory
+WORKDIR /app
+
+# Copy source code and build files
+COPY src/ ./src/
+COPY Makefile ./
+
+# Build the application
+RUN make
+
+# Stage 2: Runtime stage
+FROM ubuntu:22.04 AS runtime
+
+# Install only runtime dependencies
+RUN apt-get update && apt-get install -y \
+    libcrypto++8 \
+    libssl3 \
+    zlib1g \
+    liblua5.1-0 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy Aerospike client libraries from builder
+COPY --from=builder /usr/local/lib/libaerospike.* /usr/local/lib/
+COPY --from=builder /usr/local/include/aerospike /usr/local/include/aerospike
+
+# Create a non-root user
+RUN groupadd -r appuser && useradd --no-log-init -r -g appuser appuser
+
+# Set working directory
+WORKDIR /app
+
+# Copy the built application from builder stage
+COPY --from=builder /app/aerospike-app .
+
+# Change ownership to non-root user
+RUN chown appuser:appuser /app/aerospike-app
+
+# Switch to non-root user
+USER appuser
+
+# Set the default command
+CMD ["./aerospike-app"]

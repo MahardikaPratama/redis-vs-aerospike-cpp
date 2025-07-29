@@ -1,49 +1,45 @@
-FROM ubuntu:24.04
+# Use Ubuntu 22.04 as base image
+FROM ubuntu:22.04
 
+# Set environment variables to avoid interactive prompts
 ENV DEBIAN_FRONTEND=noninteractive
 
-# 1. Install system dependencies and Redis
+# Install build dependencies
 RUN apt-get update && apt-get install -y \
     build-essential \
     cmake \
+    g++ \
+    libcrypto++-dev \
+    libcrypto++-utils \
     pkg-config \
-    git \
-    curl \
-    gpg \
-    lsb-release \
-    ca-certificates \
     wget \
-    && curl -fsSL https://packages.redis.io/gpg | gpg --dearmor -o /usr/share/keyrings/redis-archive-keyring.gpg \
-    && chmod 644 /usr/share/keyrings/redis-archive-keyring.gpg \
-    && echo "deb [signed-by=/usr/share/keyrings/redis-archive-keyring.gpg] https://packages.redis.io/deb $(lsb_release -cs) main" \
-    | tee /etc/apt/sources.list.d/redis.list \
-    && apt-get update && apt-get install -y redis \
-    && apt-get clean \
+    curl \
+    liblua5.1-0-dev \
+    libssl-dev \
+    zlib1g-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# 2. Install hiredis
-RUN git clone https://github.com/redis/hiredis.git /tmp/hiredis && \
-    cd /tmp/hiredis && make && make install && rm -rf /tmp/hiredis
-
-# 3. Install redis-plus-plus (requires hiredis)
-RUN git clone https://github.com/sewenew/redis-plus-plus.git /tmp/redis-plus-plus && \
-    cd /tmp/redis-plus-plus && mkdir -p build && cd build && \
-    cmake .. && make && make install && rm -rf /tmp/redis-plus-plus
-
-# 4. Build your app
+    # Install Aerospike C Client first
+    RUN wget https://download.aerospike.com/artifacts/aerospike-client-c/7.0.2/aerospike-client-c_7.0.2_ubuntu22.04_x86_64.tgz \
+        && tar -xzf aerospike-client-c_7.0.2_ubuntu22.04_x86_64.tgz \
+        && cd aerospike-client-c_7.0.2_ubuntu22.04_x86_64 \
+        && dpkg -i aerospike-client-c_7.0.2-ubuntu22.04_amd64.deb \
+        && dpkg -i aerospike-client-c-devel_7.0.2-ubuntu22.04_amd64.deb \
+        && cd .. \
+        && rm -rf aerospike-client-c_7.0.2_ubuntu22.04_x86_64*# Set working directory
 WORKDIR /app
-COPY . .
 
+# Copy source code
+COPY src/ ./src/
 
-RUN rm -rf external/json && \
-    git clone https://github.com/nlohmann/json.git external/json && \
-    cd external/json && git submodule update --init --recursive
+# Copy build files
+COPY Makefile ./
 
-RUN rm -rf build/ && \
-    mkdir -p build && cd build && cmake .. && cmake --build .
+# Build the application
+RUN make
 
-COPY wait-for-redis.sh /wait-for-redis.sh
-RUN chmod +x /wait-for-redis.sh
+# Expose any ports if needed (currently this app doesn't use networking)
+# EXPOSE 8080
 
-# 6. Run binary
-ENTRYPOINT ["./build/redis_test"]
+# Set the default command
+CMD ["./aerospike-app"]

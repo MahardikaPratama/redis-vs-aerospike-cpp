@@ -1,0 +1,51 @@
+services:
+  aerospike:
+    image: aerospike/aerospike-server:7.0.0.8
+    container_name: aerospike-server
+    ports:
+      - "3000:3000"
+      - "3001:3001"
+      - "3002:3002"
+      - "3003:3003"
+    environment:
+      - NAMESPACE=test
+      - SERVICE_PORT=3000
+      - FABRIC_PORT=3001
+      - HEARTBEAT_PORT=3002
+      - INFO_PORT=3003
+    volumes:
+      - aerospike_data:/opt/aerospike/data
+    networks:
+      - aerospike_network
+    healthcheck:
+      test: ["CMD", "asinfo", "-v", "status"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  aerospike-cpp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: aerospike-cpp-app
+    depends_on:
+      aerospike:
+        condition: service_healthy
+    environment:
+      - AEROSPIKE_HOST=aerospike
+      - AEROSPIKE_PORT=3000
+      - AEROSPIKE_NAMESPACE=test
+      - AEROSPIKE_SET=books
+    networks:
+      - aerospike_network
+    # For interactive mode (useful for debugging)
+    # stdin_open: true
+    # tty: true
+
+networks:
+  aerospike_network:
+    driver: bridge
+
+volumes:
+  aerospike_data:

@@ -1,65 +1,75 @@
 #include <chrono>
 #include <iostream>
-#include <string>
-#include <sw/redis++/redis++.h> 
+#include <vector>
+#include <cstdlib>
 #include "operations/operations.h"
+#include "database/aerospike_connection.h"
 #include "utils/resource_monitor.h"
-#include "cstdlib"
 
 int64_t get_time_in_us() {
     auto now = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(now.time_since_epoch());
+
     return duration.count();
 }
 
 int main() {
-    const char* redis_host = std::getenv("REDIS_HOST");
-    const char* redis_port = std::getenv("REDIS_PORT");
-    std::string redis_url = "tcp://" + std::string(redis_host ? redis_host : "localhost") + ":" + std::string(redis_port ? redis_port : "6379");
-    sw::redis::Redis redis(redis_url);
-    std::cout << "Connecting to Redis at " << redis_url << std::endl;
-    // Check connection
-    try {
-        redis.ping();
-        std::cout << "Success connect to Redis" << std::endl;
-    } catch (const sw::redis::Error &err) {
-        std::cerr << "Failed to connect to Redis: " << err.what() << std::endl;
+    // Get Aerospike connection parameters from environment or use defaults
+    std::string aerospike_host = std::getenv("AEROSPIKE_HOST") ? std::getenv("AEROSPIKE_HOST") : "localhost";
+    int aerospike_port = std::getenv("AEROSPIKE_PORT") ? std::atoi(std::getenv("AEROSPIKE_PORT")) : 43120;
+    std::string aerospike_namespace = std::getenv("AEROSPIKE_NAMESPACE") ? std::getenv("AEROSPIKE_NAMESPACE") : "test";
+    std::string aerospike_set = std::getenv("AEROSPIKE_SET") ? std::getenv("AEROSPIKE_SET") : "books";
+    
+    std::cout << "Connecting to Aerospike at " << aerospike_host << ":" << aerospike_port << std::endl;
+    std::cout << "Namespace: " << aerospike_namespace << ", Set: " << aerospike_set << std::endl;
+    
+    // Initialize Aerospike connection
+    AerospikeConnection db(aerospike_host, aerospike_port, aerospike_namespace, aerospike_set);
+    
+    if (!db.connect()) {
+        std::cerr << "Failed to connect to Aerospike. Exiting." << std::endl;
         return 1;
     }
-
-    const uint16_t number_of_records = 10000;
-
+    
+    // Create vector for timing comparison (not used for storage anymore)
+    const uint16_t number_of_records = 10000; 
+    
     std::cout << "=================================================================================" << std::endl;
     auto start = get_time_in_us();
-    create_records_redis(redis, number_of_records);
+    create_records(db, number_of_records);
     std::cout << "Time: " + std::to_string(get_time_in_us() - start) << " us" << std::endl;
 
+    // Update a record by primary key
     std::cout << "=================================================================================" << std::endl;
     start = get_time_in_us();
-    update_by_primary_key_redis(redis, "book100", "title10o");
+    update_by_primary_key(db, "book100", "title10o");
     std::cout << "Time: " + std::to_string(get_time_in_us() - start) << " us" << std::endl;
 
+    // Read the records by primary key
     std::cout << "=================================================================================" << std::endl;
     start = get_time_in_us();
-    search_by_primary_key_redis(redis, "book100");
+    search_by_primary_key(db, "book100");
     std::cout << "Time: " + std::to_string(get_time_in_us() - start) << " us" << std::endl;
 
+    // Read the records by multiple bin value
     std::cout << "=================================================================================" << std::endl;
     start = get_time_in_us();
-    search_by_multiple_field_value_redis(redis, "author100", "title100", number_of_records);
+    search_by_multiple_field_value(db, "author100", "title10o"); // Updated to match the changed title
     std::cout << "Time: " + std::to_string(get_time_in_us() - start) << " us" << std::endl;
 
+    // Read the records by bin value with range
     std::cout << "=================================================================================" << std::endl;
     start = get_time_in_us();
-    search_by_field_value_with_range_redis(redis, 2000, 2005, number_of_records);
+    search_by_field_value_with_range(db, 2000, 2005);
     std::cout << "Time: " + std::to_string(get_time_in_us() - start) << " us" << std::endl;
 
-    std::cout << "=================================================================================" << std::endl;
-    start = get_time_in_us();
-    delete_records_redis(redis, number_of_records);
-    std::cout << "Time: " + std::to_string(get_time_in_us() - start) << " us" << std::endl;
+    // Delete the records
+    // std::cout << "=================================================================================" << std::endl;
+    // start = get_time_in_us();
+    // delete_records(db);
+    // std::cout << "Time: " + std::to_string(get_time_in_us() - start) << " us" << std::endl;
 
-    // =====================================================================
+        // =====================================================================
     // Resource Usage Monitoring
     // =====================================================================
     std::cout << "=================================================================================" << std::endl;
@@ -70,23 +80,21 @@ int main() {
     std::cout << "Application resources usage" << std::endl;
     std::cout << "CPU: " << app_cpu << "%, Memory: " << app_mem / (1024.0 * 1024.0) << " MB" << std::endl;
 
-    pid_t redis_pid = 0;
-    FILE* cmd = popen("pgrep -x redis-server", "r");
+    pid_t aerospike_pid = 0;
+    FILE* cmd = popen("pgrep asd", "r");
     if (cmd) {
-    if (fscanf(cmd, "%d", &redis_pid) != 1) { 
-        redis_pid = 0; // Reset redis_pid if fscanf fails
+        fscanf(cmd, "%d", &aerospike_pid);
+        pclose(cmd);
     }
-    pclose(cmd);
-}
 
-    if (redis_pid > 0) {
-        double as_cpu = get_cpu_usage_by_pid(redis_pid);
-        size_t as_mem = get_memory_usage_by_pid(redis_pid);
+    if (aerospike_pid > 0) {
+        double as_cpu = get_cpu_usage_by_pid(aerospike_pid);
+        size_t as_mem = get_memory_usage_by_pid(aerospike_pid);
 
-        std::cout << "redis server resources usage" << std::endl;
+        std::cout << "Aerospike server resources usage" << std::endl;
         std::cout << "CPU: " << as_cpu << "%, Memory: " << as_mem / (1024.0 * 1024.0) << " MB" << std::endl;
     } else {
-        std::cerr << "redis process not found (make sure 'asd' is running)" << std::endl;
+        std::cerr << "Aerospike process not found (make sure 'asd' is running)" << std::endl;
     }
 
     return 0;

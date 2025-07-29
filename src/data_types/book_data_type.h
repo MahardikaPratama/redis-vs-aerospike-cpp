@@ -1,7 +1,12 @@
 #pragma once
 #include <cstdint>
-#include <string> 
 #include <vector>
+#include <string>
+#include <cryptopp/ripemd.h>
+#include <cryptopp/hex.h>
+#include <cryptopp/filters.h>
+#include <aerospike/as_record.h>
+#include <aerospike/as_bin.h>
 
 #pragma pack(push, 0)
 struct Details {
@@ -13,8 +18,8 @@ struct Details {
 
 #pragma pack(push, 0)
 struct Materials {
-    std::string cover; // Changed from const char*
-    std::string content; // Changed from const char*
+    std::string cover;
+    std::string content;
 };
 #pragma pack(pop)
 
@@ -28,17 +33,18 @@ struct Review {
 
 #pragma pack(push, 0)
 struct Book {
-    std::string key; // The 'key' field will serve as the Redis key.
+    CryptoPP::byte primary_key[CryptoPP::RIPEMD160::DIGESTSIZE];
+    std::string key;
     std::string author;
     std::string title;
     uint16_t published_year;
     Details details;
     Materials materials;
-    std::vector<Review> reviews; 
+    std::vector<Review> reviews;
+    
+    // Helper methods for Aerospike serialization
+    void toAerospikeRecord(as_record* rec) const;
+    void fromAerospikeRecord(const as_record* rec);
+    std::string getDigestString() const;
 };
 #pragma pack(pop)
-
-namespace nlohmann {
-    template <typename T>
-    struct adl_serializer;
-}
