@@ -4,6 +4,7 @@
 #include <sw/redis++/redis++.h> 
 #include "operations/operations.h"
 #include "utils/resource_monitor.h"
+#include "cstdlib"
 
 int64_t get_time_in_us() {
     auto now = std::chrono::high_resolution_clock::now();
@@ -12,8 +13,11 @@ int64_t get_time_in_us() {
 }
 
 int main() {
-    sw::redis::Redis redis("tcp://127.0.0.1:6379");
-    
+    const char* redis_host = std::getenv("REDIS_HOST");
+    const char* redis_port = std::getenv("REDIS_PORT");
+    std::string redis_url = "tcp://" + std::string(redis_host ? redis_host : "localhost") + ":" + std::string(redis_port ? redis_port : "6379");
+    sw::redis::Redis redis(redis_url);
+    std::cout << "Connecting to Redis at " << redis_url << std::endl;
     // Check connection
     try {
         redis.ping();
