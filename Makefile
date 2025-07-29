@@ -7,7 +7,8 @@ SRCDIR = src
 SOURCES = $(SRCDIR)/app.cpp \
           $(SRCDIR)/operations/operations.cpp \
           $(SRCDIR)/database/aerospike_connection.cpp \
-          $(SRCDIR)/data_types/book_serialization.cpp
+          $(SRCDIR)/data_types/book_serialization.cpp \
+          $(SRCDIR)/utils/resource_monitor.cpp
 TARGET = aerospike-app
 
 all: $(TARGET)

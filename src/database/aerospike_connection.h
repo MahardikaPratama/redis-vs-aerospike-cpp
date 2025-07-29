@@ -21,7 +21,7 @@ private:
 
 public:
     AerospikeConnection(const std::string& host = "localhost", 
-                       int port = 43120, 
+                       int port = 3001, 
                        const std::string& ns = "test", 
                        const std::string& set = "books");
     ~AerospikeConnection();

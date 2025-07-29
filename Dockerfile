@@ -17,6 +17,7 @@ RUN apt-get update && apt-get install -y \
     liblua5.1-0-dev \
     libssl-dev \
     zlib1g-dev \
+    libcurl4-openssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
     # Install Aerospike C Client first
